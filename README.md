@@ -1,4 +1,2 @@
-#
-
-# beetroot_homework
-I'm Alexander Grigoriev it's my home work
+# beetroot final project
+I'm Alexander Grigoriev it's my Beetroot final project.
