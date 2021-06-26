@@ -93,9 +93,9 @@ def go(args: str):
     task_name = ''
     args_list = args.split(' ')
 
-    if is_day(str(args_list[0])):
-        start_date = is_day(str(args_list[0]))
-        # print(start_date)
+    first_arg_is_day = is_day(str(args_list[0]))
+    if first_arg_is_day:
+        start_date = first_arg_is_day
         args_list.pop(0)
     else:
         start_date = today()
