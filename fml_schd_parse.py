@@ -155,4 +155,6 @@ def go(args: str):
 
 
 if __name__ == '__main__':
-    print(go('25.11.2021 from 18:01 till 20:11 to cinema'))
+    print(go('25.11.2021 from 18 till 20:23 to cinema'))
+
+    print(go('25.06 from 10:01 till 11 Lunch'))

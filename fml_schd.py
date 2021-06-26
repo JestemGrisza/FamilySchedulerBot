@@ -40,9 +40,11 @@ bot = Bot(token=API_TOKEN)
 # Use simple MemoryStorage for Dispatcher.
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
+
+# Use middleware for user authorization
 dp.middleware.setup(AccessMiddleware())
 
-# scheduler run ========================================================================================================
+# scheduler run by "on_startup=" in executor.start_polling()============================================================
 
 
 async def job_1m():
@@ -115,6 +117,8 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     # And remove keyboard (just in case)
     await message.reply('Conversation cancelled! Try /help', reply_markup=types.ReplyKeyboardRemove())
 
+# /join -- Join to bot service and manage join requests
+
 
 @dp.message_handler(commands=['join'])
 async def join(message: types.Message):
@@ -175,7 +179,10 @@ async def user(message: types.Message):
 
 
 # /go processing START =================================================================================================
-
+# /go -- Create task
+#
+# /task|go [<day>] <time> <Task description>
+# or /task|go without args for interactive mode
 
 @dp.message_handler(commands=['task', 'go'])
 async def task(message: types.Message, state: FSMContext):
@@ -361,7 +368,7 @@ async def process_custom_notify(message: types.Message, state: FSMContext):
         await message.answer('Task added to DB!')
 
 
-# /go processing FINISH ================================================================================================
+# /go processing STOP  ================================================================================================
 
 
 @dp.message_handler(commands=['today'])
@@ -383,7 +390,7 @@ async def ask(message: types.Message):
 
 
 @dp.message_handler()
-async def echo(message: types.Message):
+async def last_resort(message: types.Message):
     await message.reply("Sorry, I don't understand. Try /help")
 
 
