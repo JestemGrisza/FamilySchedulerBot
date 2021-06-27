@@ -25,6 +25,8 @@ import os
 
 from fml_schd_middleware import AccessMiddleware
 
+from aiogram.dispatcher.handler import CancelHandler
+
 API_TOKEN = os.getenv("TELEGRAM_API_TOKEN")
 if db.user_table():
     ROOT_ID = db.get_root_user_tid()
@@ -84,19 +86,16 @@ async def send_welcome(message: types.Message):
                         "/join - join to bot service, and manage join requests\n"
                         "/user - list of active users\n\n"
                         "Create task examples:\n"
-                        "/go School\n"
                         "/go 10 Lunch\n"
                         "/go at 11 gym\n"
                         "/go from 18 till 20:30 to cinema\n"
-                        "/task tomorrow at 20 Party\n"
+                        "/go tomorrow at 20 Party\n"
+                        "/go 28-12-2021 at 11 gym\n"
                         "/go mon 8 to work\n"
+                        "/go 27.07 from 18:23 till 20:30 to cinema\n"
                         "/go fr from 10 till 11 Lunch\n\n"
                         "/every 10 Lunch\n"
-                        "/every Fr at 18 Drank to shit!\n\n"
-                        "Don't disturb:\n"
-                        "/ddn == /ddn 1h\n"
-                        "/ddn [to 10[.00]]\n"
-                        "/ddn [1-23]h"
+                        "/every Fr at 18 Drank to shit!"
                         )
 
 
@@ -189,6 +188,9 @@ async def task(message: types.Message, state: FSMContext):
     args = message.get_args()
     if args:
         add_task = parse.go(args)
+        if not add_task[0] or not add_task[1] or not add_task[2]:
+            await message.reply("Can't parse task string.\nRead /help or use /go for interactive mode.")
+            raise CancelHandler()
         async with state.proxy() as data:
             data['task'] = add_task
         await message.answer(f"Your task:\n\nStart: {data['task'][0]}\nEnd: {data['task'][1]}\nTask: {data['task'][2]}"
@@ -196,7 +198,19 @@ async def task(message: types.Message, state: FSMContext):
         # Set state
         await Go.task.set()
     else:
-        await message.answer("Set Task description:")
+        await message.answer("Your can use line mode to create task:\n"
+                             "/go [<day>] <time> <Task description>\n"
+                             "For example:\n\n"
+                             "/go 10 Lunch\n"
+                             "/go 28-12-2021 at 11 gym\n"
+                             "/go from 18 till 20:30 to cinema\n"
+                             "/go tomorrow at 20 Party\n"
+                             "/go mon 8 to work\n"
+                             "/go 27.07 from 18:23 till 20:30 to cinema\n"
+                             "/go fr from 10 till 11 Lunch\n\n"
+                             "/cancel and use line mode or \n\n"
+                             "==========================================\n"
+                             "Enter new task description:")
         # Set state
         await Go.set_desc.set()
 
@@ -376,7 +390,10 @@ async def today(message: types.Message):
     res = ''
     for i in db.get_task(message.from_user.id, date.today()):
         res = res + f'{i.start_date.strftime("%H:%M")} {i.end_date.strftime("%H:%M")} {i.task_name}\n'
-    await message.reply(res)
+    if res:
+        await message.reply(res)
+    else:
+        await message.reply('There is no task for today!')
 
 
 @dp.message_handler(commands=['every'])

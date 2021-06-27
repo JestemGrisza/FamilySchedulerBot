@@ -138,17 +138,23 @@ def go(args: str):
             task_name = ' '.join(args_list[3:]).strip()
 
     start_str = f"{start_date} {start_time}"
-    start_datetime = datetime.datetime.strptime(start_str, '%Y-%m-%d %H:%M')
+    start_datetime = ''
+    stop_datetime = ''
+    try:
+        start_datetime = datetime.datetime.strptime(start_str, '%Y-%m-%d %H:%M')
 
-    if end_date == '' or end_time == '':
-        """
-        If end date and end time not defined -- use DEFAULT_TASK_DURATION
-        """
-        stop_datetime = start_datetime + datetime.timedelta(minutes=DEFAULT_TASK_DURATION)
-    else:
-        stop_str = f"{end_date} {end_time}"
-        # print(stop_str)
-        stop_datetime = datetime.datetime.strptime(stop_str, '%Y-%m-%d %H:%M')
+        if end_date == '' or end_time == '':
+            """
+            If end date and end time not defined -- use DEFAULT_TASK_DURATION
+            """
+            stop_datetime = start_datetime + datetime.timedelta(minutes=DEFAULT_TASK_DURATION)
+        else:
+            stop_str = f"{end_date} {end_time}"
+            # print(stop_str)
+            stop_datetime = datetime.datetime.strptime(stop_str, '%Y-%m-%d %H:%M')
+
+    except ValueError:
+        pass
 
     # return f'Start: {start_date} at {start_time}\nEnd: {end_date} at {end_time}\nTask: {task_name}'
     return start_datetime, stop_datetime, task_name

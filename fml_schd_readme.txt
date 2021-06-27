@@ -1,3 +1,16 @@
+/help for @BotFather
+help - Show commands and descriptions
+cancel - Cancel any conversation at any place
+go - Create task: /go [<day>] <time> <Task description>
+go - Create task: /go without args for interactive mode
+today - Show list of today tasks
+join - Join to bot service and manage join requests
+user - List of active users
+settings - Bot settings
+
+
+=========================
+
 Create task
 
 /task|go [<day>] <time> <Task description>
