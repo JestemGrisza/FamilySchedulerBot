@@ -12,6 +12,16 @@ class AccessMiddleware(BaseMiddleware):
         # # Get current handler and command
         # handler = current_handler.get()
         # command = logging.info(message.get_command())
-        if (not user_exist(int(message.from_user.id))) and (message.get_command() not in '/join'):
+        # print(message.get_command())
+        # print(user_exist(int(message.from_user.id)))
+        # dp = Dispatcher.get_current()
+        # state = dp.get_current().current_state()
+        # print(data)
+        # handler = current_handler.get()
+        # if message.content_type == "contact" or message.content_type == "location":
+        #     return
+        if message.get_command() == '/cancel' or data['raw_state'] == 'Join:contact':
+            return
+        if not user_exist(int(message.from_user.id)) and message.get_command() != '/join':
             await message.answer("Access Denied.\nUse /join to send request for authorization!")
             raise CancelHandler()

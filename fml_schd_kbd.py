@@ -19,3 +19,8 @@ btn_no = KeyboardButton('/no')
 
 yes_no_kbd = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
 yes_no_kbd.row(btn_yes, btn_no)
+
+# phone & location
+contact_request = ReplyKeyboardMarkup(resize_keyboard=True).add(
+    KeyboardButton('Send contact ☎️', request_contact=True)
+)

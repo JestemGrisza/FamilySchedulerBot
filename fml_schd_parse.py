@@ -3,7 +3,6 @@ import re
 import datetime
 import pytz
 
-import fml_schd_const
 from fml_schd_const import DAY_NAME_FULL, DAY_NAME_3CHAR, DAY_NAME_2CHAR, DATE_REGEXP_SHORT, DATE_REGEXP_LONG, \
     TIME_REGEXP_LONG, TIME_REGEXP_SHORT, DEFAULT_TASK_DURATION
 

@@ -51,6 +51,21 @@ dp.middleware.setup(AccessMiddleware())
 
 async def job_1m():
     logging.info('schedule test')
+    for i in db.get_notify_now():
+        if not i.is_notify:
+            await bot.send_message(i.user_id, f"Notify {i.start_date}{i.end_date} {i.task_name}")
+            db.set_task_state(i, 'Notified')
+    for i in db.get_start_now():
+        if i.state != 'InProgress':
+            await bot.send_message(i.user_id, f"Start {i.start_date}{i.end_date} {i.task_name}")
+            db.set_task_state(i, 'InProgress')
+    for i in db.get_end_now():
+        if i.state == 'InProgress':
+            await bot.send_message(i.user_id, f"Stop {i.start_date}{i.end_date} {i.task_name}")
+            db.set_task_state(i, 'Done')
+            db.move_task_to_arch(i)
+
+
 
 
 async def scheduler():
@@ -77,6 +92,10 @@ class Go(StatesGroup):
     notify = State()  # Will be represented in storage as 'Go: notify'
 
 
+class Join(StatesGroup):
+    contact = State()
+
+
 @dp.message_handler(commands=['start', 'help'])
 async def send_welcome(message: types.Message):
     """
@@ -94,8 +113,7 @@ async def send_welcome(message: types.Message):
                         "/go mon 8 to work\n"
                         "/go 27.07 from 18:23 till 20:30 to cinema\n"
                         "/go fr from 10 till 11 Lunch\n\n"
-                        "/every 10 Lunch\n"
-                        "/every Fr at 18 Drank to shit!"
+                        "/today - today task list"
                         )
 
 
@@ -159,14 +177,35 @@ async def join(message: types.Message):
                                 f'(tid={message.from_user.id}, username={message.from_user.username})'
                                 f' already sent request.\nWait for authorization!')
         else:
-            # New user sent request
-            await bot.send_message(ROOT_ID,
-                                   f'{message.from_user.first_name} {message.from_user.last_name} '
-                                   f'(tid={int(message.from_user.id)}, username={str(message.from_user.username)})'
-                                   f' want to join.\n  ')
-            await message.answer('Wait for authorization, please!')
-            db.add_req(int(message.from_user.id), str(message.from_user.username), str(message.from_user.first_name),
-                       str(message.from_user.last_name))
+            # New user sent request. Request contact for authorization.
+
+            await message.answer('Press button to send your phone number!', reply_markup=kb.contact_request)
+            # Set state
+            await Join.contact.set()
+
+
+@dp.message_handler(state=Join.contact)
+async def handle_contact_invalid(message: types.Message):
+    await message.reply('Press button "Send contact" at bottom of the screen to send your phone number!',
+                        reply_markup=kb.contact_request)
+
+
+@dp.message_handler(content_types=['contact'], state=Join.contact)
+async def handle_contact(message: types.Message, state: FSMContext):
+    if message.contact is not None:
+        await message.answer(f'Your contact number is {str(message.contact.phone_number)}.\n'
+                             f'Wait for authorization, please!', reply_markup=types.ReplyKeyboardRemove())
+    else:
+        await message.answer(f'You not sent contact number.\n'
+                             f'Wait for authorization, please!', reply_markup=types.ReplyKeyboardRemove())
+    db.add_req(int(message.from_user.id), str(message.from_user.username), str(message.from_user.first_name),
+               str(message.from_user.last_name),str(message.contact.phone_number))
+    await bot.send_message(ROOT_ID,
+                           f'{message.from_user.first_name} {message.from_user.last_name} '
+                           f'(tid={int(message.from_user.id)}, username={str(message.from_user.username)},'
+                           f' contact={str(message.contact.phone_number)})'
+                           f' want to join.\n  ')
+    await state.finish()
 
 
 @dp.message_handler(commands=['user'])
@@ -209,7 +248,7 @@ async def task(message: types.Message, state: FSMContext):
                              "/go 27.07 from 18:23 till 20:30 to cinema\n"
                              "/go fr from 10 till 11 Lunch\n\n"
                              "/cancel and use line mode or \n\n"
-                             "==========================================\n"
+                             "===\n"
                              "Enter new task description:")
         # Set state
         await Go.set_desc.set()

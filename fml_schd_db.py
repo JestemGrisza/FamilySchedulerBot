@@ -58,6 +58,30 @@ class Task(Base):
     start_date = Column(DateTime)
     end_date = Column(DateTime)
     notify_at = Column(DateTime)
+    is_notify = Column(Boolean, default=False)
+    comment = Column(VARCHAR(255))
+    state = Column(VARCHAR(255), default='Active')  # Active, Notified, InProgress, Delayed, Cancel, Done
+
+    user_id = Column(Integer, ForeignKey('users.tid'))
+
+    def __repr__(self):
+        return f"<Task {self.task_name=}>, User {self.user_id=}"
+
+
+class TaskArchive(Base):
+    __tablename__ = 'task_arch'
+
+    id = Column(Integer, primary_key=True)
+    task_name = Column(VARCHAR(255))
+
+    # create_date = Column(DateTime(timezone=True), default=func.now())
+    create_date = Column(DateTime, default=datetime.datetime.now)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    notify_at = Column(DateTime)
+    is_notify = Column(Boolean, default=False)
+    comment = Column(VARCHAR(255))
+    state = Column(VARCHAR(25), default='Active')  # Active, Notified, InProgress, Delayed, Cancel, Done
 
     user_id = Column(Integer, ForeignKey('users.tid'))
 
@@ -71,8 +95,8 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 
-def add_req(tid, name, firstname, lastname):
-    rec = Req(tid=tid, name=name, firstname=firstname, lastname=lastname)
+def add_req(tid, name, firstname, lastname, phone_number):
+    rec = Req(tid=tid, name=name, firstname=firstname, lastname=lastname, phone_number=phone_number)
     session.add(rec)
     session.commit()
 
@@ -86,7 +110,7 @@ def add_user(tid, name, firstname, lastname, admin=False, ro=False):
 def req_to_user_move(tid):
     req = session.query(Req).filter(Req.tid == tid).first()
     # print(req)
-    rec = User(tid=req.tid, name=req.name, firstname=req.firstname, lastname=req.lastname)
+    rec = User(tid=req.tid, name=req.name, firstname=req.firstname, lastname=req.lastname, phone_number=req.phone_number)
     session.add(rec)
     session.delete(req)
     session.commit()
@@ -130,6 +154,40 @@ def user_table():
 
 def req_table():
     return session.query(Req).count()
+
+
+def get_notify_now():
+    notify_now = session.query(Task).filter(
+        Task.notify_at <= datetime.datetime.now()).all()
+    return notify_now
+
+
+def get_start_now():
+    start_now = session.query(Task).filter(
+        Task.start_date <= datetime.datetime.now()).all()
+    return start_now
+
+
+def get_end_now():
+    end_now = session.query(Task).filter(
+        Task.end_date <= datetime.datetime.now()).all()
+    return end_now
+
+
+def set_task_state(task: Task, state: str):
+    task.state = state
+    if state == 'Notified':
+        task.is_notify = True
+    session.commit()
+
+
+def move_task_to_arch(task: Task):
+    rec = TaskArchive(task_name=task.task_name, create_date=task.create_date, start_date=task.start_date,
+                      end_date=task.end_date, notify_at=task.notify_at, is_notify=task.is_notify,
+                      comment=task.comment, state=task.state, user_id=task.user_id)
+    session.add(rec)
+    session.delete(task)
+    session.commit()
 
 
 if __name__ == '__main__':
