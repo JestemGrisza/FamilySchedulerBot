@@ -66,8 +66,6 @@ async def job_1m():
             db.move_task_to_arch(i)
 
 
-
-
 async def scheduler():
     schedule.every(1).minutes.do(job_1m)
     while True:

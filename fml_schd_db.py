@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, VARCHAR, BLOB, DateTime, Boolean
+from sqlalchemy import Column, Integer, VARCHAR, BLOB, DateTime, Boolean, Enum
 from sqlalchemy import create_engine
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import declarative_base
@@ -86,7 +86,7 @@ class TaskArchive(Base):
     user_id = Column(Integer, ForeignKey('users.tid'))
 
     def __repr__(self):
-        return f"<Task {self.task_name=}>, User {self.user_id=}"
+        return f"<Archive task {self.task_name=}>, User {self.user_id=}"
 
 
 Base.metadata.create_all(engine)
