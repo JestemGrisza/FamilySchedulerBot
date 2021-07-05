@@ -1,5 +1,5 @@
 SQLAlchemy~=1.4.17
-aiogram~=2.13
-pytz~=2021.1
-aioschedule~=0.5.2
-python-telegram-bot-calendar~=1.0.5
+aiogram==2.13
+pytz==2021.1
+aioschedule==0.5.2
+python-telegram-bot-calendar==1.0.5
