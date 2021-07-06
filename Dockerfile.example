@@ -1,0 +1,16 @@
+FROM python:3.9
+
+RUN mkdir -p /usr/src/fml_schd
+WORKDIR /usr/src/fml_schd
+
+ENV TELEGRAM_API_TOKEN="PLACE TOKEN HERE"
+
+ENV TZ=Europe/Kiev
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+COPY *.py /usr/src/fml_schd/
+COPY requirements.txt /usr/src/fml_schd/
+RUN pip install -r requirements.txt
+
+
+ENTRYPOINT ["python", "fml_schd.py"]
