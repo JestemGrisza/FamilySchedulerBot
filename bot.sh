@@ -1,11 +1,13 @@
 #!/bin/sh
+cur_dir=$(exec pwd)
+echo "$cur_dir"
 case "$1" in
     install)
             echo "Install bot from Github"
             rm -r FamilySchedulerBot
             git clone https://github.com/JestemGrisza/FamilySchedulerBot.git
             cp Dockerfile ./FamilySchedulerBot/
-            cd FamilySchedulerBot
+            cd FamilySchedulerBot || exit 1
             sudo docker build -t fml_schd .
             sudo docker image ls
             echo "."
@@ -18,7 +20,7 @@ case "$1" in
    start)
             echo "Start bot"
             sudo docker stop bot
-            sudo docker run --name bot -d --rm -v /home/grisha/:/usr/src/fml_schd/db fml_schd
+            sudo docker run --name bot -d --rm -v "$cur_dir":/usr/src/fml_schd/db fml_schd
             sudo docker ps
             echo "."
             ;;
