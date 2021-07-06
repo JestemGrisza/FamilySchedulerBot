@@ -50,18 +50,29 @@ dp.middleware.setup(AccessMiddleware())
 
 
 async def job_1m():
-    logging.info('schedule test')
+    # logging.info('schedule test')
     for i in db.get_notify_now():
         if not i.is_notify:
-            await bot.send_message(i.user_id, f"Notify {i.start_date}{i.end_date} {i.task_name}")
+            await bot.send_message(i.user_id, f'Notify: {i.task_name} '
+                                              f'{i.start_date.strftime("%H:%M")}-'
+                                              f'{i.end_date.strftime("%H:%M")}')
+            # await bot.send_message(i.user_id, '10', reply_markup=kb.notify_kbd)
+            # # Set state
+            # await Notify.wait.set()
+            # state = Dispatcher.get_current().current_state()
+            # await state.update_data(notify_task=i)
             db.set_task_state(i, 'Notified')
     for i in db.get_start_now():
         if i.state != 'InProgress':
-            await bot.send_message(i.user_id, f"Start {i.start_date}{i.end_date} {i.task_name}")
+            await bot.send_message(i.user_id, f'Start:  {i.task_name} '
+                                              f'{i.start_date.strftime("%H:%M")}-'
+                                              f'{i.end_date.strftime("%H:%M")}')
             db.set_task_state(i, 'InProgress')
     for i in db.get_end_now():
         if i.state == 'InProgress':
-            await bot.send_message(i.user_id, f"Stop {i.start_date}{i.end_date} {i.task_name}")
+            await bot.send_message(i.user_id, f'Stop:  {i.task_name} '
+                                              f'{i.start_date.strftime("%H:%M")}-'
+                                              f'{i.end_date.strftime("%H:%M")}')
             db.set_task_state(i, 'Done')
             db.move_task_to_arch(i)
 
@@ -92,6 +103,10 @@ class Go(StatesGroup):
 
 class Join(StatesGroup):
     contact = State()
+
+
+class Notify(StatesGroup):
+    wait = State()
 
 
 @dp.message_handler(commands=['start', 'help'])
@@ -132,9 +147,43 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     # And remove keyboard (just in case)
     await message.reply('Conversation cancelled! Try /help', reply_markup=types.ReplyKeyboardRemove())
 
+
+# Notify Task
+
+# @dp.callback_query_handler(lambda call: call.data in ["ok", "remind", "cancel"], state=Notify.wait)
+# async def notify_callback(call: types.CallbackQuery, state: FSMContext):
+#     await call.message.delete_reply_markup()
+#     async with state.proxy() as data:
+#         i = data['notify_task']
+#
+#     if str(call.data) == 'ok':
+#         db.set_task_state(i, 'Notified')
+#         await bot.send_message(call.from_user.id, 'Notified')
+#         await call.answer()
+#         await state.finish()
+#     elif str(call.data) == 'cancel':
+#         db.set_task_state(i, 'Notified')
+#         await bot.send_message(call.from_user.id, f'Task cancelled!')
+#         await call.answer(text="Task canceled!", show_alert=False)
+#         await state.finish()
+#     elif str(call.data) == 'remind':
+#         await bot.send_message(call.from_user.id, f'Remind in 10 min!')
+#         await call.answer(text="Remind in 10 min!", show_alert=False)
+#         await state.finish()
+
+
+# @dp.callback_query_handler(state=Notify.wait)
+# async def inline_kb_notify_wait(call: types.CallbackQuery, state: FSMContext):
+#     await asyncio.sleep(10)
+#     count = 9
+#     await bot.edit_message_text(str(count),
+#                                     call.message.chat.id,
+#                                     call.message.message_id)
+#     # await asyncio.sleep(1)
+#     # count -= 1
+
+
 # /join -- Join to bot service and manage join requests
-
-
 @dp.message_handler(commands=['join'])
 async def join(message: types.Message):
     args = message.get_args()
@@ -204,14 +253,6 @@ async def handle_contact(message: types.Message, state: FSMContext):
                            f' contact={str(message.contact.phone_number)})'
                            f' want to join.\n  ')
     await state.finish()
-
-
-@dp.message_handler(commands=['user'])
-async def user(message: types.Message):
-    res = ''
-    for i in db.show_users():
-        res = res + f'{i.tid}, @{i.name}\n'
-    await message.answer(res)
 
 
 # /go processing START =================================================================================================
@@ -421,12 +462,32 @@ async def process_custom_notify(message: types.Message, state: FSMContext):
 
 # /go processing STOP  ================================================================================================
 
+@dp.message_handler(commands=['user'])
+async def user(message: types.Message):
+    res = ''
+    for i in db.show_users():
+        res = res + f'{i.tid}, @{i.name}\n'
+    await message.answer(res)
+
+
+@dp.message_handler(commands=['todo'])
+async def todo(message: types.Message):
+    res = ''
+    for i in db.get_task(message.from_user.id, date.today()):
+        res = res + f'{i.start_date.strftime("%H:%M")} {i.end_date.strftime("%H:%M")} {i.task_name}\n'
+    if res:
+        await message.reply(res)
+    else:
+        await message.reply('There is no task for today!')
+
 
 @dp.message_handler(commands=['today'])
 async def today(message: types.Message):
     res = ''
-    for i in db.get_task(message.from_user.id, date.today()):
-        res = res + f'{i.start_date.strftime("%H:%M")} {i.end_date.strftime("%H:%M")} {i.task_name}\n'
+    for usr in db.show_users():
+        res = res + f'{usr.tid}, @{usr.name}:\n\n'
+        for i in db.get_task(usr.tid, date.today()):
+            res = res + f'{i.start_date.strftime("%H:%M")} {i.end_date.strftime("%H:%M")} {i.task_name}\n'
     if res:
         await message.reply(res)
     else:
