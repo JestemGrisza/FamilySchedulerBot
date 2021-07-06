@@ -10,7 +10,7 @@ from sqlalchemy.sql import exists
 
 import datetime
 
-engine = create_engine('sqlite:///fml_schd.db', echo=False)
+engine = create_engine('sqlite:///db/fml_schd.db', echo=False)
 
 Base = declarative_base()
 
