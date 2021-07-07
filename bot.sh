@@ -6,7 +6,7 @@ echo "$cur_dir"
 case "$1" in
     install)
             echo "Install bot from Github"
-            rm -r FamilySchedulerBot
+            rm -rf FamilySchedulerBot
             git clone https://github.com/JestemGrisza/FamilySchedulerBot.git
             cp Dockerfile ./FamilySchedulerBot/
             cd FamilySchedulerBot || exit 1
