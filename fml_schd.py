@@ -469,74 +469,6 @@ async def process_custom_notify(message: types.Message, state: FSMContext):
 
 # /go processing FINISH ==============================================================================================
 
-@dp.message_handler(commands=['user'])
-async def user(message: types.Message):
-    """
-    Show users list
-    """
-    res = ''
-    for usr in db.show_users():
-        res = res + f'{usr.firstname} {usr.lastname} ({usr.tid}, {usr.phone_number})\n'
-    await message.answer(res)
-
-
-@dp.message_handler(commands=['todo'])
-async def todo(message: types.Message):
-    """
-    Show user today task
-    """
-    res = ''
-    for tsk in db.get_task_at_date(message.from_user.id, date.today()):
-        res = res + f'/rm{tsk.id} {tsk.start_date.strftime("%H:%M")} {tsk.end_date.strftime("%H:%M")} {tsk.task_name}\n'
-    if res:
-        await message.reply(res)
-    else:
-        await message.reply('There is no task for today!')
-
-
-@dp.message_handler(commands=['today'])
-async def today(message: types.Message):
-    """
-    Show all users today tasks
-    """
-    res = f'Today {date.today()}\n'
-    for usr in db.show_users():
-        res = res + f'\n{usr.firstname} {usr.lastname} ({usr.tid}, {usr.phone_number}):\n'
-        for tsk in db.get_task_at_date(usr.tid, date.today()):
-            res = res + f'{tsk.start_date.strftime("%H:%M")} {tsk.end_date.strftime("%H:%M")} {tsk.task_name}\n'
-    if res:
-        await message.reply(res)
-    else:
-        await message.reply('There is no task for today!')
-
-
-@dp.message_handler(lambda message: re.match("^/rm", message.text))
-async def rm(message: types.Message):
-    """
-    Remove task by ID
-    To prevent abuse db.get_task_by_id accept user ID and task ID,
-    so users can remove only own task!!
-    """
-    tsk = db.get_task_by_id(int(message.from_user), int(str(message.text).removeprefix('/rm')))
-    if tsk:
-        db.set_task_state(tsk, "Canceled")
-        db.move_task_to_arch(tsk)
-        await message.reply(f'{tsk.start_date.strftime("%H:%M")} '
-                            f'{tsk.end_date.strftime("%H:%M")} '
-                            f'{tsk.task_name}\nTask canceled!')
-    else:
-        await message.reply("Can't delete task!")
-
-
-@dp.message_handler(commands=['every'])
-async def every(message: types.Message):
-    """
-    Set regular task
-    On the way ...
-    """
-    pass
-
-
 # Ask processing START =============================================================================================
 
 @dp.message_handler(commands=['ask'])
@@ -606,6 +538,82 @@ async def process_ask_task_yes_no_invalid(message: types.Message):
 
 
 # Ask processing FINISH =============================================================================================
+
+
+@dp.message_handler(commands=['user'])
+async def user(message: types.Message):
+    """
+    Show users list
+    """
+    res = ''
+    for usr in db.show_users():
+        res = res + f'{usr.firstname} {usr.lastname} ({usr.tid}, {usr.phone_number})\n'
+    await message.answer(res)
+
+
+@dp.message_handler(commands=['todo'])
+async def todo(message: types.Message):
+    """
+    Show user today task
+    """
+    res = ''
+    for tsk in db.get_task_at_date(message.from_user.id, date.today()):
+        res = res + f'/rm{tsk.id} {tsk.start_date.strftime("%H:%M")} {tsk.end_date.strftime("%H:%M")} {tsk.task_name}\n'
+    if res:
+        await message.reply(res)
+    else:
+        await message.reply('There is no task for today!')
+
+
+@dp.message_handler(commands=['today'])
+async def today(message: types.Message):
+    """
+    Show all users today tasks
+    """
+    res = f'Today {date.today()}\n'
+    for usr in db.show_users():
+        res = res + f'\n{usr.firstname} {usr.lastname} ({usr.tid}, {usr.phone_number}):\n'
+        for tsk in db.get_task_at_date(usr.tid, date.today()):
+            res = res + f'{tsk.start_date.strftime("%H:%M")} {tsk.end_date.strftime("%H:%M")} {tsk.task_name}\n'
+    if res:
+        await message.reply(res)
+    else:
+        await message.reply('There is no task for today!')
+
+
+@dp.message_handler(lambda message: re.match("^/rm", message.text))
+async def rm(message: types.Message):
+    """
+    Remove task by ID
+    To prevent abuse db.get_task_by_id accept user ID and task ID,
+    so users can remove only own task!!
+    """
+    tsk = db.get_task_by_id(int(message.from_user), int(str(message.text).removeprefix('/rm')))
+    if tsk:
+        db.set_task_state(tsk, "Canceled")
+        db.move_task_to_arch(tsk)
+        await message.reply(f'{tsk.start_date.strftime("%H:%M")} '
+                            f'{tsk.end_date.strftime("%H:%M")} '
+                            f'{tsk.task_name}\nTask canceled!')
+    else:
+        await message.reply("Can't delete task!")
+
+
+@dp.message_handler(commands=['every'])
+async def every(message: types.Message):
+    """
+    Set regular task
+    On the way ...
+    """
+    pass
+
+
+@dp.message_handler(commands=['unjoin'])
+async def unjoin(message: types.Message):
+    """
+    Unjoin from bot service
+    """
+    pass
 
 
 @dp.message_handler()
