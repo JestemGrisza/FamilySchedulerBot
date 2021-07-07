@@ -499,9 +499,9 @@ async def today(message: types.Message):
     """
     Show all users today tasks
     """
-    res = ''
+    res = f'Today {date.today()}\n'
     for usr in db.show_users():
-        res = res + f'{usr.firstname} {usr.lastname} ({usr.tid}, {usr.phone_number}):\n'
+        res = res + f'\n{usr.firstname} {usr.lastname} ({usr.tid}, {usr.phone_number}):\n'
         for tsk in db.get_task_at_date(usr.tid, date.today()):
             res = res + f'{tsk.start_date.strftime("%H:%M")} {tsk.end_date.strftime("%H:%M")} {tsk.task_name}\n'
     if res:
