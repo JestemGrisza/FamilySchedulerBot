@@ -126,8 +126,13 @@ def add_task(task_name, user_id, start_date='', end_date='', notify_at=''):
     session.commit()
 
 
-def get_task(tid, date):
+def get_task_at_date(tid, date):
     return session.query(Task).filter(and_(Task.user_id == tid, func.DATE(Task.start_date) == date)).all()
+
+
+def get_task_by_id(tid, _id):
+    # return session.query(Task).get(_id)
+    return session.query(Task).filter(and_(Task.user_id == tid, Task.id == _id)).first()
 
 
 def show_users():
@@ -193,6 +198,7 @@ def move_task_to_arch(task: Task):
 if __name__ == '__main__':
     pass
     print(req_exist(502886232))
+    print(get_task_by_id(426072814, 1))
     # req_to_user_move(502886232)
     # add_user(54321,'vasia', admin=True)
     # print(get_root_user_tid())

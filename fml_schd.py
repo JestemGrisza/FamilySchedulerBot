@@ -101,6 +101,10 @@ class Go(StatesGroup):
     notify = State()  # Will be represented in storage as 'Go: notify'
 
 
+class Ask(StatesGroup):
+    ask_task = State()
+
+
 class Join(StatesGroup):
     contact = State()
 
@@ -126,7 +130,8 @@ async def send_welcome(message: types.Message):
                         "/go mon 8 to work\n"
                         "/go 27.07 from 18:23 till 20:30 to cinema\n"
                         "/go fr from 10 till 11 Lunch\n\n"
-                        "/today - today task list"
+                        "/today - All users today task list\n"
+                        "/todo - user today task list"
                         )
 
 
@@ -246,7 +251,7 @@ async def handle_contact(message: types.Message, state: FSMContext):
         await message.answer(f'You not sent contact number.\n'
                              f'Wait for authorization, please!', reply_markup=types.ReplyKeyboardRemove())
     db.add_req(int(message.from_user.id), str(message.from_user.username), str(message.from_user.first_name),
-               str(message.from_user.last_name),str(message.contact.phone_number))
+               str(message.from_user.last_name), str(message.contact.phone_number))
     await bot.send_message(ROOT_ID,
                            f'{message.from_user.first_name} {message.from_user.last_name} '
                            f'(tid={int(message.from_user.id)}, username={str(message.from_user.username)},'
@@ -271,8 +276,8 @@ async def task(message: types.Message, state: FSMContext):
             raise CancelHandler()
         async with state.proxy() as data:
             data['task'] = add_task
-        await message.answer(f"Your task:\n\nStart: {data['task'][0]}\nEnd: {data['task'][1]}\nTask: {data['task'][2]}"
-                             , reply_markup=kb.inline_yes_no_kbd)
+        await message.answer(f"Your task:\n\nStart: {data['task'][0]}\nEnd: {data['task'][1]}\nTask: {data['task'][2]}",
+                             reply_markup=kb.inline_yes_no_kbd)
         # Set state
         await Go.task.set()
     else:
@@ -335,7 +340,7 @@ async def inline_kb_calculator_callback_handler(call: types.CallbackQuery, state
 
 # Time must looks like HH:MM
 @dp.message_handler(lambda message: not re.match(TIME_REGEXP_LONG, message.text), state=Go.set_time)
-async def process_set_time_invalid(message: types.Message, state: FSMContext):
+async def process_set_time_invalid(message: types.Message):
     """
        If time format is invalid
     """
@@ -378,7 +383,9 @@ async def process_set_duration(message: types.Message, state: FSMContext):
         # data['task'] = f"Your task:\n\nStart: {start_datetime}\nEnd: {stop_datetime}\nTask: "
         data['task'] = (start_datetime, stop_datetime, data['set_desc'])
         await bot.send_message(message.from_user.id,
-                               f"Your task:\n\nStart: {data['task'][0]}\nEnd: {data['task'][1]}\nTask: {data['task'][2]}",
+                               f"Your task:\n\nStart: {data['task'][0]}\n"
+                               f"End: {data['task'][1]}\n"
+                               f"Task: {data['task'][2]}",
                                reply_markup=kb.inline_yes_no_kbd)
 
 
@@ -390,7 +397,7 @@ async def process_callback_task(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete_reply_markup()
     if str(call.data) == 'yes':
         await Go.next()
-        await bot.send_message(call.from_user.id, f'Want set default notification for this task to 1 hour?',
+        await bot.send_message(call.from_user.id, f'Do you want set default notification for this task to 1 hour?',
                                reply_markup=kb.inline_notify_kbd)
         await call.answer()
     elif str(call.data) == 'no':
@@ -460,21 +467,27 @@ async def process_custom_notify(message: types.Message, state: FSMContext):
         await message.answer('Task added to DB!')
 
 
-# /go processing STOP  ================================================================================================
+# /go processing FINISH ==============================================================================================
 
 @dp.message_handler(commands=['user'])
 async def user(message: types.Message):
+    """
+    Show users list
+    """
     res = ''
-    for i in db.show_users():
-        res = res + f'{i.tid}, @{i.name}\n'
+    for usr in db.show_users():
+        res = res + f'{usr.firstname} {usr.lastname} ({usr.tid}, {usr.phone_number})\n'
     await message.answer(res)
 
 
 @dp.message_handler(commands=['todo'])
 async def todo(message: types.Message):
+    """
+    Show user today task
+    """
     res = ''
-    for i in db.get_task(message.from_user.id, date.today()):
-        res = res + f'{i.start_date.strftime("%H:%M")} {i.end_date.strftime("%H:%M")} {i.task_name}\n'
+    for tsk in db.get_task_at_date(message.from_user.id, date.today()):
+        res = res + f'/rm{tsk.id} {tsk.start_date.strftime("%H:%M")} {tsk.end_date.strftime("%H:%M")} {tsk.task_name}\n'
     if res:
         await message.reply(res)
     else:
@@ -483,25 +496,116 @@ async def todo(message: types.Message):
 
 @dp.message_handler(commands=['today'])
 async def today(message: types.Message):
+    """
+    Show all users today tasks
+    """
     res = ''
     for usr in db.show_users():
-        res = res + f'{usr.tid}, @{usr.name}:\n\n'
-        for i in db.get_task(usr.tid, date.today()):
-            res = res + f'{i.start_date.strftime("%H:%M")} {i.end_date.strftime("%H:%M")} {i.task_name}\n'
+        res = res + f'{usr.firstname} {usr.lastname} ({usr.tid}, {usr.phone_number}):\n'
+        for tsk in db.get_task_at_date(usr.tid, date.today()):
+            res = res + f'{tsk.start_date.strftime("%H:%M")} {tsk.end_date.strftime("%H:%M")} {tsk.task_name}\n'
     if res:
         await message.reply(res)
     else:
         await message.reply('There is no task for today!')
 
 
+@dp.message_handler(lambda message: re.match("^/rm", message.text))
+async def rm(message: types.Message):
+    """
+    Remove task by ID
+    To prevent abuse db.get_task_by_id accept user ID and task ID,
+    so users can remove only own task!!
+    """
+    tsk = db.get_task_by_id(int(message.from_user), int(str(message.text).removeprefix('/rm')))
+    if tsk:
+        db.set_task_state(tsk, "Canceled")
+        db.move_task_to_arch(tsk)
+        await message.reply(f'{tsk.start_date.strftime("%H:%M")} '
+                            f'{tsk.end_date.strftime("%H:%M")} '
+                            f'{tsk.task_name}\nTask canceled!')
+    else:
+        await message.reply("Can't delete task!")
+
+
 @dp.message_handler(commands=['every'])
 async def every(message: types.Message):
+    """
+    Set regular task
+    On the way ...
+    """
     pass
 
+
+# Ask processing START =============================================================================================
 
 @dp.message_handler(commands=['ask'])
-async def ask(message: types.Message):
-    pass
+async def ask(message: types.Message, state: FSMContext):
+    """
+    Ask family to accept some task
+    On the way ...
+    """
+    args = message.get_args()
+    if args:
+        add_task = parse.go(args)
+        if not add_task[0] or not add_task[1] or not add_task[2]:
+            await message.reply("Can't parse task string.\nRead /help or use /go for interactive mode.")
+            raise CancelHandler()
+        async with state.proxy() as data:
+            data['ask_task'] = add_task
+        await message.answer(f"Do you want ask family to accept this task?\n\n"
+                             f"Start: {data['ask_task'][0]}\n"
+                             f"End: {data['ask_task'][1]}\n"
+                             f"Task: {data['ask_task'][2]}")
+
+        await message.answer(f"Wait 60",
+                             reply_markup=kb.inline_yes_no_kbd)
+        # Set state
+        await Ask.ask_task.set()
+    else:
+        await message.answer("Use line mode to create task!")
+
+# state: Ask.task
+
+
+@dp.callback_query_handler(lambda call: call.data in ["yes", "no"], state=Ask.ask_task)
+async def process_callback_ask_task(call: types.CallbackQuery, state: FSMContext):
+    if str(call.data) == 'yes':
+        # await Ask.next()
+        count = 9
+        await asyncio.sleep(1)
+        while count:
+            await bot.edit_message_text(f"Wait {count}",
+                                        call.message.chat.id,
+                                        call.message.message_id,
+                                        reply_markup=kb.inline_yes_no_kbd)
+            await asyncio.sleep(1)
+            count -= 1
+        await bot.edit_message_text(f'Wait 0\nTask cancelled!',
+                                    call.message.chat.id,
+                                    call.message.message_id,
+                                    reply_markup=kb.inline_yes_no_kbd)
+        await call.answer(text="Task canceled!", show_alert=False)
+        await call.message.delete_reply_markup()
+        # Finish conversation
+        await state.finish()
+    elif str(call.data) == 'no':
+        await bot.send_message(call.from_user.id, f'Task cancelled!')
+        await call.answer(text="Task canceled!", show_alert=False)
+        await call.message.delete_reply_markup()
+        # Finish conversation
+        await state.finish()
+
+
+@dp.message_handler(state=Ask.ask_task)
+async def process_ask_task_yes_no_invalid(message: types.Message):
+    """
+    In this check answer has to be one of: yes or no.
+    """
+    return await message.reply("Choose 'yes' or 'no' from the keyboard.")
+
+
+# Ask processing FINISH =============================================================================================
 
 
 @dp.message_handler()
