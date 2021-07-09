@@ -281,7 +281,7 @@ async def task(message: types.Message, state: FSMContext):
     args = message.get_args()
     if args:
         add_task = parse.go(args)
-        if not add_task[0] or not add_task[1] or not add_task[2]:
+        if not add_task[0] or not add_task[1] or not add_task[2] or (add_task[0] > add_task[1]):
             await message.reply("Can't parse task string.\nRead /help or use /go for interactive mode.")
             raise CancelHandler()
         async with state.proxy() as data:
