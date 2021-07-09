@@ -60,7 +60,7 @@ class Task(Base):
     notify_at = Column(DateTime)
     is_notify = Column(Boolean, default=False)
     comment = Column(VARCHAR(255))
-    state = Column(VARCHAR(255), default='Active')  # Active, Notified, InProgress, Delayed, Cancel, Done
+    state = Column(VARCHAR(255), default='Active')  # Active, Notified, InProgress, Delayed, Canceled, Done
 
     user_id = Column(Integer, ForeignKey('users.tid'))
 
@@ -192,6 +192,18 @@ def move_task_to_arch(task: Task):
                       comment=task.comment, state=task.state, user_id=task.user_id)
     session.add(rec)
     session.delete(task)
+    session.commit()
+
+
+def rm_user_tasks(tid: int):
+    for tsk in session.query(Task).filter(Task.user_id == tid).all():
+        set_task_state(tsk, "Canceled")
+        move_task_to_arch(tsk)
+
+
+def rm_user(tid: int):
+    usr = session.query(User).filter(User.tid == tid).first()
+    session.delete(usr)
     session.commit()
 
 

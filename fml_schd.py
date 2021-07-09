@@ -109,6 +109,14 @@ class Join(StatesGroup):
     contact = State()
 
 
+class Unjoin(StatesGroup):
+    unjoin_yes_no = State()
+
+
+class Rm(StatesGroup):
+    rm_yes_no = State()
+
+
 class Notify(StatesGroup):
     wait = State()
 
@@ -607,14 +615,48 @@ async def every(message: types.Message):
     """
     pass
 
+# /unjoin START =====================================================================================================
+
 
 @dp.message_handler(commands=['unjoin'])
 async def unjoin(message: types.Message):
     """
     Unjoin from bot service
     """
-    pass
+    if int(message.from_user) != ROOT_ID:
+        await message.reply("Do you really want to delete all tasks and un join from service?",
+                            reply_markup=kb.inline_yes_no_kbd)
+        await State.set(Unjoin.unjoin_yes_no)
+    else:
+        await message.reply("ROOT can't unjoin yet. Stay strong, die hard!")
 
+
+@dp.callback_query_handler(lambda call: call.data in ["yes", "no"], state=Unjoin.unjoin_yes_no)
+async def process_callback_unjoin(call: types.CallbackQuery, state: FSMContext):
+    if str(call.data) == 'yes':
+        await bot.send_message(call.from_user.id, f'User un joined, tasks deleted! Bye!')
+        db.rm_user_tasks(int(call.from_user))
+        db.rm_user(int(call.from_user))
+        await call.answer(text="Bye!", show_alert=False)
+        await call.message.delete_reply_markup()
+        # Finish conversation
+        await state.finish()
+    elif str(call.data) == 'no':
+        await bot.send_message(call.from_user.id, f'Unjoin cancelled!')
+        await call.answer(text="Unjoin canceled!", show_alert=False)
+        await call.message.delete_reply_markup()
+        # Finish conversation
+        await state.finish()
+
+
+@dp.message_handler(state=Unjoin.unjoin_yes_no)
+async def process_unjoin_yes_no_invalid(message: types.Message):
+    """
+    In this check answer has to be one of: yes or no.
+    """
+    return await message.reply("Choose 'yes' or 'no' from the keyboard.")
+
+# /unjoin FINISH ====================================================================================================
 
 @dp.message_handler()
 async def last_resort(message: types.Message):
