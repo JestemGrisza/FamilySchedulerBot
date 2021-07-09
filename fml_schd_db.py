@@ -10,6 +10,8 @@ from sqlalchemy.sql import exists
 
 import datetime
 
+from fml_schd_const import TaskState
+
 engine = create_engine('sqlite:///db/fml_schd.db', echo=False)
 
 Base = declarative_base()
@@ -60,7 +62,8 @@ class Task(Base):
     notify_at = Column(DateTime)
     is_notify = Column(Boolean, default=False)
     comment = Column(VARCHAR(255))
-    state = Column(VARCHAR(255), default='Active')  # Active, Notified, InProgress, Delayed, Canceled, Done
+    # state = Column(VARCHAR(255), default='Active')  # Active, Notified, InProgress, Delayed, Canceled, Done
+    state = Column(Enum(TaskState), default=TaskState.active)
 
     user_id = Column(Integer, ForeignKey('users.tid'))
 
@@ -81,7 +84,8 @@ class TaskArchive(Base):
     notify_at = Column(DateTime)
     is_notify = Column(Boolean, default=False)
     comment = Column(VARCHAR(255))
-    state = Column(VARCHAR(25), default='Active')  # Active, Notified, InProgress, Delayed, Cancel, Done
+    # state = Column(VARCHAR(25), default='Active')  # Active, Notified, InProgress, Delayed, Cancel, Done
+    state = Column(Enum(TaskState), default=TaskState.active)
 
     user_id = Column(Integer, ForeignKey('users.tid'))
 
@@ -179,9 +183,9 @@ def get_end_now():
     return end_now
 
 
-def set_task_state(task: Task, state: str):
+def set_task_state(task: Task, state: TaskState):
     task.state = state
-    if state == 'Notified':
+    if state == TaskState.notified:
         task.is_notify = True
     session.commit()
 
@@ -197,7 +201,7 @@ def move_task_to_arch(task: Task):
 
 def rm_user_tasks(tid: int):
     for tsk in session.query(Task).filter(Task.user_id == tid).all():
-        set_task_state(tsk, "Canceled")
+        set_task_state(tsk, TaskState.canceled)
         move_task_to_arch(tsk)
 
 
@@ -217,7 +221,7 @@ if __name__ == '__main__':
     # print(req_table())
     # print(session.query(User).count())
     # pass
-    # add_task('test #1', 1)
+    # add_task('test #1', 1, datetime.datetime.now(), datetime.datetime.now(), datetime.datetime.now())
     # add_user(12345,'grisha')
     # add_req(54321,'vasia')
     # print(show_users())

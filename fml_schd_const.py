@@ -16,10 +16,9 @@ DATE_REGEXP_SHORT = '^[0-9]{2}[-/.][0-9]{2}$'
 DEFAULT_TASK_DURATION = 60
 
 # State for task: Active, Notified, InProgress, Delayed, Canceled, Done
-# Don't used yet
 
 
-class State(Enum):
+class TaskState(Enum):
     active = 1
     notified = 2
     in_progress = 3

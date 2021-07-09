@@ -17,6 +17,7 @@ from datetime import date, datetime, timedelta
 
 import re
 from fml_schd_const import TIME_REGEXP_LONG
+from fml_schd_const import TaskState
 
 import asyncio
 import aioschedule as schedule
@@ -61,19 +62,19 @@ async def job_1m():
             # await Notify.wait.set()
             # state = Dispatcher.get_current().current_state()
             # await state.update_data(notify_task=i)
-            db.set_task_state(i, 'Notified')
+            db.set_task_state(i, TaskState.notified)
     for i in db.get_start_now():
-        if i.state != 'InProgress':
+        if i.state != TaskState.in_progress:
             await bot.send_message(i.user_id, f'Start:  {i.task_name} '
                                               f'{i.start_date.strftime("%H:%M")}-'
                                               f'{i.end_date.strftime("%H:%M")}')
-            db.set_task_state(i, 'InProgress')
+            db.set_task_state(i, TaskState.in_progress)
     for i in db.get_end_now():
-        if i.state == 'InProgress':
+        if i.state == TaskState.in_progress:
             await bot.send_message(i.user_id, f'Stop:  {i.task_name} '
                                               f'{i.start_date.strftime("%H:%M")}-'
                                               f'{i.end_date.strftime("%H:%M")}')
-            db.set_task_state(i, 'Done')
+            db.set_task_state(i, TaskState.done)
             db.move_task_to_arch(i)
 
 
@@ -513,7 +514,7 @@ async def ask(message: types.Message, state: FSMContext):
 async def process_callback_ask_task(call: types.CallbackQuery, state: FSMContext):
     if str(call.data) == 'yes':
         # await Ask.next()
-        count = 9
+        count = 59
         await asyncio.sleep(1)
         while count:
             await bot.edit_message_text(f"Wait {count}",
@@ -599,7 +600,7 @@ async def rm(message: types.Message):
     """
     tsk = db.get_task_by_id(int(message.from_user), int(str(message.text).removeprefix('/rm')))
     if tsk:
-        db.set_task_state(tsk, "Canceled")
+        db.set_task_state(tsk, TaskState.canceled)
         db.move_task_to_arch(tsk)
         await message.reply(f'{tsk.start_date.strftime("%H:%M")} '
                             f'{tsk.end_date.strftime("%H:%M")} '
@@ -627,7 +628,7 @@ async def unjoin(message: types.Message):
     if int(message.from_user) != ROOT_ID:
         await message.reply("Do you really want to delete all tasks and un join from service?",
                             reply_markup=kb.inline_yes_no_kbd)
-        await State.set(Unjoin.unjoin_yes_no)
+        await Unjoin.unjoin_yes_no.set()
     else:
         await message.reply("ROOT can't unjoin yet. Stay strong, die hard!")
 
@@ -658,6 +659,7 @@ async def process_unjoin_yes_no_invalid(message: types.Message):
     return await message.reply("Choose 'yes' or 'no' from the keyboard.")
 
 # /unjoin FINISH ====================================================================================================
+
 
 @dp.message_handler()
 async def last_resort(message: types.Message):
