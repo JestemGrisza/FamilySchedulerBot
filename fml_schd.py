@@ -128,6 +128,7 @@ async def send_welcome(message: types.Message):
     """
     await message.reply("Family scheduler bot.\n\n"
                         "/join - join to bot service, and manage join requests\n"
+                        "/unjoin - un join from bot service, delete all user tasks\n"
                         "/user - list of active users\n\n"
                         "Create task examples:\n"
                         "/go 10 Lunch\n"
