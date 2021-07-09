@@ -225,8 +225,8 @@ async def join(message: types.Message):
                 await bot.send_message(int(args_list[0]), 'Access granted! Welcome to Family!\n/help to command list.')
             else:
                 res = ''
-                for i in db.show_req():
-                    res = res + f'{i.tid}, @{i.name}\n'
+                for usr in db.show_req():
+                    res = res + f'{usr.firstname} {usr.lastname} ({usr.tid}, {usr.phone_number})\n'
                 await message.reply(f'Users waiting for join:\n{res}')
 
     else:
