@@ -114,7 +114,8 @@ def add_user(tid, name, firstname, lastname, admin=False, ro=False):
 def req_to_user_move(tid):
     req = session.query(Req).filter(Req.tid == tid).first()
     # print(req)
-    rec = User(tid=req.tid, name=req.name, firstname=req.firstname, lastname=req.lastname, phone_number=req.phone_number)
+    rec = User(tid=req.tid, name=req.name, firstname=req.firstname,
+               lastname=req.lastname, phone_number=req.phone_number)
     session.add(rec)
     session.delete(req)
     session.commit()
@@ -130,8 +131,13 @@ def add_task(task_name, user_id, start_date='', end_date='', notify_at=''):
     session.commit()
 
 
-def get_task_at_date(tid, date):
-    return session.query(Task).filter(and_(Task.user_id == tid, func.DATE(Task.start_date) == date)).all()
+def get_task(tid, date=None):
+    if date:
+        ret = session.query(Task).filter(and_(Task.user_id == tid,
+                                              func.DATE(Task.start_date) == date)).order_by(Task.start_date).all()
+    else:
+        ret = session.query(Task).filter(Task.user_id == tid).order_by(Task.start_date).all()
+    return ret
 
 
 def get_task_by_id(tid, _id):

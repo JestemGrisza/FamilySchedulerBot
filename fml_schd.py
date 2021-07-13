@@ -104,6 +104,7 @@ class Go(StatesGroup):
 
 class Ask(StatesGroup):
     ask_task = State()
+    ok_task = State()
 
 
 class Join(StatesGroup):
@@ -140,8 +141,8 @@ async def send_welcome(message: types.Message):
                         "/go mon 8 to work\n"
                         "/go 27.07 from 18:23 till 20:30 to cinema\n"
                         "/go fr from 10 till 11 Lunch\n\n"
-                        "/today - All users today task list\n"
-                        "/todo - user today task list"
+                        "/today - ALL users TODAY task list\n"
+                        "/todo [all] - user today|all tasks"
                         )
 
 
@@ -485,49 +486,76 @@ async def process_custom_notify(message: types.Message, state: FSMContext):
 async def ask(message: types.Message, state: FSMContext):
     """
     Ask family to accept some task
-    On the way ...
     """
     args = message.get_args()
     if args:
-        add_task = parse.go(args)
-        if not add_task[0] or not add_task[1] or not add_task[2] or (add_task[0] > add_task[1]):
+        start_date, stop_date, task_name = parse.go(args)
+        if not start_date or not stop_date or not task_name or (start_date > stop_date):
             await message.reply("Can't parse task string.\nRead /help or use /go for interactive mode.")
             raise CancelHandler()
         async with state.proxy() as data:
-            data['ask_task'] = add_task
+            data['ask_task'] = (start_date, stop_date, task_name, message.from_user)
         await message.answer(f"Do you want ask family to accept this task?\n\n"
                              f"Start: {data['ask_task'][0]}\n"
                              f"End: {data['ask_task'][1]}\n"
-                             f"Task: {data['ask_task'][2]}")
-
-        await message.answer(f"Wait 60",
+                             f"Task: {data['ask_task'][2]}",
                              reply_markup=kb.inline_yes_no_kbd)
         # Set state
         await Ask.ask_task.set()
     else:
         await message.answer("Use line mode to create task!")
 
-# state: Ask.task
+# state: Ask.ask_task
 
 
 @dp.callback_query_handler(lambda call: call.data in ["yes", "no"], state=Ask.ask_task)
 async def process_callback_ask_task(call: types.CallbackQuery, state: FSMContext):
     if str(call.data) == 'yes':
-        # await Ask.next()
-        count = 59
-        await asyncio.sleep(1)
-        while count:
-            await bot.edit_message_text(f"Wait {count}",
-                                        call.message.chat.id,
-                                        call.message.message_id,
-                                        reply_markup=kb.inline_yes_no_kbd)
-            await asyncio.sleep(1)
-            count -= 1
-        await bot.edit_message_text(f'Wait 0\nTask cancelled!',
-                                    call.message.chat.id,
-                                    call.message.message_id,
-                                    reply_markup=kb.inline_yes_no_kbd)
+        # Set state
+        await Ask.ok_task.set()
+        async with state.proxy() as data:
+            # for usr in db.show_users():
+            await bot.send_message(call.message.chat.id, f"{data['ask_task'][3]['first_name']} "
+                                                f"{data['ask_task'][3]['last_name']} "
+                                                f"ask for help: {data['ask_task'][2]} "
+                                                f"{data['ask_task'][0]} {data['ask_task'][1]}",
+                                                reply_markup=kb.inline_yes_no_kbd)
+        await call.message.delete_reply_markup()
+        await call.answer(text="Ask sent, wait for accept!", show_alert=True)
+
+    elif str(call.data) == 'no':
+        await bot.send_message(call.from_user.id, f'Task cancelled!')
         await call.answer(text="Task canceled!", show_alert=False)
+        await call.message.delete_reply_markup()
+        # Finish conversation
+        await state.finish()
+
+
+# @dp.message_handler(state=Ask.ask_task)
+# async def process_ask_task_yes_no_invalid(message: types.Message):
+#     """
+#     In this check answer has to be one of: yes or no.
+#     """
+#     return await message.reply("Choose 'yes' or 'no' from the keyboard.")
+
+# state: Ask.ok_task
+
+
+@dp.callback_query_handler(lambda call: call.data in ["yes", "no"], state=Ask.ok_task)
+async def process_callback_ok_task(call: types.CallbackQuery, state: FSMContext):
+    if str(call.data) == 'yes':
+        async with state.proxy() as data:
+            db.add_task(f"{data['ask_task'][2]} (ask {data['ask_task'][3]['first_name']} "
+                        f"{data['ask_task'][3]['last_name']})", call.from_user.id, start_date=data['ask_task'][0],
+                        end_date=data['ask_task'][1], notify_at=data['ask_task'][0] - timedelta(minutes=60))
+
+            await call.answer('Task added to DB!')
+            for usr in db.show_users():
+                await bot.send_message(usr.tid, f"{call.from_user.first_name} {call.from_user.last_name} accept ask "
+                                                f"from {data['ask_task'][3]['first_name']} "
+                                                f"{data['ask_task'][3]['last_name']}: "
+                                                f"{data['ask_task'][0]} {data['ask_task'][1]}"
+                                                f" {data['ask_task'][2]}")
         await call.message.delete_reply_markup()
         # Finish conversation
         await state.finish()
@@ -539,14 +567,12 @@ async def process_callback_ask_task(call: types.CallbackQuery, state: FSMContext
         await state.finish()
 
 
-@dp.message_handler(state=Ask.ask_task)
-async def process_ask_task_yes_no_invalid(message: types.Message):
-    """
-    In this check answer has to be one of: yes or no.
-    """
-    return await message.reply("Choose 'yes' or 'no' from the keyboard.")
-
-
+# @dp.message_handler(state=Ask.ok_task)
+# async def process_ok_task_yes_no_invalid(message: types.Message):
+#     """
+#     In this check answer has to be one of: yes or no.
+#     """
+#     return await message.reply("Choose 'yes' or 'no' from the keyboard.")
 # Ask processing FINISH =============================================================================================
 
 
@@ -564,15 +590,29 @@ async def user(message: types.Message):
 @dp.message_handler(commands=['todo'])
 async def todo(message: types.Message):
     """
-    Show user today task
+    Show user task:
+    /todo -- today tasks
+    /todo all -- all tasks
     """
-    res = ''
-    for tsk in db.get_task_at_date(message.from_user.id, date.today()):
-        res = res + f'/rm{tsk.id} {tsk.start_date.strftime("%H:%M")} {tsk.end_date.strftime("%H:%M")} {tsk.task_name}\n'
-    if res:
-        await message.reply(res)
+    args = message.get_args().split()
+    if args and args[0] == 'all':
+        res = ''
+        for tsk in db.get_task(message.from_user.id):
+            res = res + f'/rm{tsk.id} {tsk.start_date.strftime("%d %b, %H:%M")}-{tsk.end_date.strftime("%H:%M")}' \
+                        f' {tsk.task_name}\n'
+        if res:
+            await message.reply(res)
+        else:
+            await message.reply('There is no task for user!')
     else:
-        await message.reply('There is no task for today!')
+        res = ''
+        for tsk in db.get_task(message.from_user.id, date=date.today()):
+            res = res + f'/rm{tsk.id} {tsk.start_date.strftime("%H:%M")}-{tsk.end_date.strftime("%H:%M")}' \
+                        f' {tsk.task_name}\n'
+        if res:
+            await message.reply(res)
+        else:
+            await message.reply('There is no task for today!')
 
 
 @dp.message_handler(commands=['today'])
@@ -583,8 +623,8 @@ async def today(message: types.Message):
     res = f'Today {date.today()}\n'
     for usr in db.show_users():
         res = res + f'\n{usr.firstname} {usr.lastname} ({usr.tid}, {usr.phone_number}):\n'
-        for tsk in db.get_task_at_date(usr.tid, date.today()):
-            res = res + f'{tsk.start_date.strftime("%H:%M")} {tsk.end_date.strftime("%H:%M")} {tsk.task_name}\n'
+        for tsk in db.get_task(usr.tid, date=date.today()):
+            res = res + f'{tsk.start_date.strftime("%H:%M")}-{tsk.end_date.strftime("%H:%M")} {tsk.task_name}\n'
     if res:
         await message.reply(res)
     else:
@@ -598,11 +638,11 @@ async def rm(message: types.Message):
     To prevent abuse db.get_task_by_id accept user ID and task ID,
     so users can remove only own task!!
     """
-    tsk = db.get_task_by_id(int(message.from_user), int(str(message.text).removeprefix('/rm')))
+    tsk = db.get_task_by_id(int(message.from_user.id), int(str(message.text).removeprefix('/rm')))
     if tsk:
         db.set_task_state(tsk, TaskState.canceled)
         db.move_task_to_arch(tsk)
-        await message.reply(f'{tsk.start_date.strftime("%H:%M")} '
+        await message.reply(f'{tsk.start_date.strftime("%d %b, %H:%M")} '
                             f'{tsk.end_date.strftime("%H:%M")} '
                             f'{tsk.task_name}\nTask canceled!')
     else:
@@ -625,7 +665,7 @@ async def unjoin(message: types.Message):
     """
     Unjoin from bot service
     """
-    if int(message.from_user) != ROOT_ID:
+    if int(message.from_user.id) != ROOT_ID:
         await message.reply("Do you really want to delete all tasks and un join from service?",
                             reply_markup=kb.inline_yes_no_kbd)
         await Unjoin.unjoin_yes_no.set()
@@ -637,6 +677,9 @@ async def unjoin(message: types.Message):
 async def process_callback_unjoin(call: types.CallbackQuery, state: FSMContext):
     if str(call.data) == 'yes':
         await bot.send_message(call.from_user.id, f'User un joined, tasks deleted! Bye!')
+        await bot.send_message(ROOT_ID, f'User {call.from_user.first_name}'
+                                        f' {call.from_user.last_name} ({call.from_user.id}) '
+                                        f'unjoined, tasks deleted!')
         db.rm_user_tasks(int(call.from_user))
         db.rm_user(int(call.from_user))
         await call.answer(text="Bye!", show_alert=False)
