@@ -514,12 +514,12 @@ async def process_callback_ask_task(call: types.CallbackQuery, state: FSMContext
         # Set state
         await Ask.ok_task.set()
         async with state.proxy() as data:
-            # for usr in db.show_users():
-            await bot.send_message(call.message.chat.id, f"{data['ask_task'][3]['first_name']} "
-                                                f"{data['ask_task'][3]['last_name']} "
-                                                f"ask for help: {data['ask_task'][2]} "
-                                                f"{data['ask_task'][0]} {data['ask_task'][1]}",
-                                                reply_markup=kb.inline_yes_no_kbd)
+            for usr in db.show_users():
+                await bot.send_message(usr.tid, f"{data['ask_task'][3]['first_name']} "
+                                       f"{data['ask_task'][3]['last_name']} "
+                                       f"ask for help: {data['ask_task'][2]} "
+                                       f"{data['ask_task'][0]} {data['ask_task'][1]}",
+                                       reply_markup=kb.inline_yes_no_kbd)
         await call.message.delete_reply_markup()
         await call.answer(text="Ask sent, wait for accept!", show_alert=True)
 
@@ -531,12 +531,12 @@ async def process_callback_ask_task(call: types.CallbackQuery, state: FSMContext
         await state.finish()
 
 
-# @dp.message_handler(state=Ask.ask_task)
-# async def process_ask_task_yes_no_invalid(message: types.Message):
-#     """
-#     In this check answer has to be one of: yes or no.
-#     """
-#     return await message.reply("Choose 'yes' or 'no' from the keyboard.")
+@dp.message_handler(state=Ask.ask_task)
+async def process_ask_task_yes_no_invalid(message: types.Message):
+    """
+    In this check answer has to be one of: yes or no.
+    """
+    return await message.reply("Choose 'yes' or 'no' from the keyboard.")
 
 # state: Ask.ok_task
 
@@ -567,12 +567,12 @@ async def process_callback_ok_task(call: types.CallbackQuery, state: FSMContext)
         await state.finish()
 
 
-# @dp.message_handler(state=Ask.ok_task)
-# async def process_ok_task_yes_no_invalid(message: types.Message):
-#     """
-#     In this check answer has to be one of: yes or no.
-#     """
-#     return await message.reply("Choose 'yes' or 'no' from the keyboard.")
+@dp.message_handler(state=Ask.ok_task)
+async def process_ok_task_yes_no_invalid(message: types.Message):
+    """
+    In this check answer has to be one of: yes or no.
+    """
+    return await message.reply("Choose 'yes' or 'no' from the keyboard.")
 # Ask processing FINISH =============================================================================================
 
 
